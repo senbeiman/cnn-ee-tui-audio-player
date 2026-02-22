@@ -17,6 +17,7 @@ pub struct Player {
     is_playing: bool,
     start_time: Option<Instant>,
     file_duration: Option<Duration>,
+    elapsed_before_pause: Duration,
 }
 
 impl Player {
@@ -31,6 +32,7 @@ impl Player {
             is_playing: false,
             start_time: None,
             file_duration: None,
+            elapsed_before_pause: Duration::from_secs(0),
         })
     }
 
@@ -54,6 +56,7 @@ impl Player {
         self.current_file = Some(file_path.to_string_lossy().to_string());
         self.is_playing = true;
         self.start_time = Some(Instant::now());
+        self.elapsed_before_pause = Duration::from_secs(0);
 
         Ok(())
     }
@@ -61,14 +64,17 @@ impl Player {
     pub fn toggle_pause(&mut self) {
         if let Some(sink) = &self.sink {
             if self.is_playing {
+                // 一時停止時：現在の経過時間を保存
+                if let Some(start_time) = self.start_time {
+                    self.elapsed_before_pause = self.elapsed_before_pause + start_time.elapsed();
+                }
                 sink.pause();
                 self.is_playing = false;
-                // 一時停止時は開始時刻をリセット
                 self.start_time = None;
             } else {
+                // 再開時：新しい開始時刻を設定
                 sink.play();
                 self.is_playing = true;
-                // 再開時は新しい開始時刻を設定
                 self.start_time = Some(Instant::now());
             }
         }
@@ -83,6 +89,7 @@ impl Player {
         self.is_playing = false;
         self.start_time = None;
         self.file_duration = None;
+        self.elapsed_before_pause = Duration::from_secs(0);
     }
 
     pub fn is_playing(&self) -> bool {
@@ -102,20 +109,34 @@ impl Player {
     }
 
     pub fn get_position(&self) -> Duration {
-        if let (Some(start_time), Some(duration), true) =
-            (self.start_time, self.file_duration, self.is_playing) {
-            let elapsed = start_time.elapsed();
+        if let Some(duration) = self.file_duration {
+            let total_elapsed = if self.is_playing {
+                // 再生中：一時停止前の時間 + 現在セッションの経過時間
+                if let Some(start_time) = self.start_time {
+                    self.elapsed_before_pause + start_time.elapsed()
+                } else {
+                    self.elapsed_before_pause
+                }
+            } else {
+                // 一時停止中：一時停止前の累積時間
+                self.elapsed_before_pause
+            };
+
             // リピート再生なので、ファイル長で割った余りを返す
-            Duration::from_nanos(
-                (elapsed.as_nanos() % duration.as_nanos()) as u64
-            )
+            if duration.as_nanos() > 0 {
+                Duration::from_nanos(
+                    (total_elapsed.as_nanos() % duration.as_nanos()) as u64
+                )
+            } else {
+                Duration::from_secs(0)
+            }
         } else {
             Duration::from_secs(0)
         }
     }
 
     pub fn get_duration(&self) -> Duration {
-        self.file_duration.unwrap_or(Duration::from_secs(300))
+        self.file_duration.unwrap_or(Duration::from_secs(0))
     }
 }
 
@@ -149,6 +170,6 @@ fn get_mp3_duration(file_path: &Path) -> Result<Duration> {
         Ok(Duration::from_secs_f64(seconds))
     } else {
         // フレーム数が取得できない場合のフォールバック
-        Ok(Duration::from_secs(300)) // デフォルト5分
+        Ok(Duration::from_secs(0)) // デフォルト0分
     }
 }
