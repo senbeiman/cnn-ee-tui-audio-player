@@ -22,22 +22,12 @@ cargo build --release
 ### 実行
 
 ```bash
-# デフォルトディレクトリ（~/Downloads/2603/音声DL/）を使用
+# デフォルトディレクトリ（~/Downloads）を使用
 ./target/release/tui-media-player
 
 # 任意のディレクトリを指定
 ./target/release/tui-media-player /path/to/music/directory
 ```
-
-### キーバインド
-
-| キー | 動作 |
-|------|------|
-| `↑` | 前のファイル |
-| `↓` | 次のファイル |
-| `Enter` | 選択ファイル再生 |
-| `Space` | 再生/一時停止 |
-| `q` | 終了 |
 
 ## 技術仕様
 
