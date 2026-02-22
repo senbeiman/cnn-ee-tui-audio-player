@@ -53,10 +53,10 @@ fn draw_ui(f: &mut Frame, app: &App) {
         .skip(app.scroll_offset)
         .take(10)
         .map(|(i, file)| {
-            let prefix = if i == app.selected { "> " } else { "  " };
-            let content = format!("{}{}", prefix, file.display_name());
+            let play_icon = if app.is_file_playing(file) { "♪ " } else { "  " };
+            let content = format!("{}{}", play_icon, file.display_name());
             let style = if i == app.selected {
-                Style::default().bg(Color::Blue).fg(Color::White)
+                Style::default().fg(Color::Green)
             } else {
                 Style::default().fg(Color::Gray)
             };

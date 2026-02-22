@@ -100,6 +100,11 @@ impl App {
         }
     }
 
+    pub fn is_file_playing(&self, file: &FileInfo) -> bool {
+        let current_playing = self.player.current_file_name();
+        current_playing != "なし" && file.name == current_playing
+    }
+
     pub fn is_playing(&self) -> bool {
         self.player.is_playing()
     }
