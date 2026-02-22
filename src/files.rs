@@ -71,13 +71,3 @@ pub fn scan_current_directory(current_dir: &Path, _root_dir: &Path) -> Result<Ve
     Ok(files)
 }
 
-// Backward compatibility - remove after migration
-pub fn scan_mp3_files(dir: &str) -> Result<Vec<FileInfo>> {
-    let search_dir = if dir.is_empty() {
-        format!("{}/Downloads", std::env::var("HOME").unwrap_or_default())
-    } else {
-        dir.to_string()
-    };
-    let path = Path::new(&search_dir);
-    scan_current_directory(path, path)
-}

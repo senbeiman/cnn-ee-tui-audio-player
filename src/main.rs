@@ -72,10 +72,10 @@ fn handle_key_event(app: &mut App, key: KeyEvent) -> Result<()> {
         KeyCode::Char('j') => {
             app.select_next();
         }
-        KeyCode::Char('h') => {
+        KeyCode::Char('[') => {
             app.page_up();
         }
-        KeyCode::Char('l') => {
+        KeyCode::Char(']') => {
             app.page_down();
         }
         KeyCode::Char(' ') => {

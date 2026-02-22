@@ -232,8 +232,15 @@ impl App {
             self.scroll_offset -= 10;
             self.selected = self.scroll_offset;
         } else {
-            self.scroll_offset = 0;
-            self.selected = 0;
+            // 既に最初のページにいる場合
+            if self.scroll_offset == 0 && self.selected > 0 {
+                // 最初のページで先頭以外にいる場合は先頭へ
+                self.selected = 0;
+            } else {
+                // 既に先頭にいる場合は変化なし
+                self.scroll_offset = 0;
+                self.selected = 0;
+            }
         }
     }
 
@@ -249,8 +256,15 @@ impl App {
         } else {
             // 最後のページの場合
             if self.files.len() > 10 {
-                self.scroll_offset = self.files.len() - 10;
-                self.selected = self.files.len() - 1;
+                let last_page_start = self.files.len() - 10;
+                if self.scroll_offset < last_page_start {
+                    // まだ最後のページでない場合は最後のページの先頭へ
+                    self.scroll_offset = last_page_start;
+                    self.selected = self.scroll_offset;
+                } else {
+                    // 既に最後のページにいる場合は最後の項目へ
+                    self.selected = self.files.len() - 1;
+                }
             } else {
                 self.selected = self.files.len() - 1;
             }
