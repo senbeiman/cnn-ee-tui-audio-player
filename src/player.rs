@@ -1,9 +1,13 @@
 use std::path::Path;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 use std::fs::File;
 use std::io::BufReader;
 use anyhow::Result;
 use rodio::{Decoder, OutputStream, OutputStreamHandle, Sink, Source};
+use symphonia::core::formats::FormatOptions;
+use symphonia::core::io::MediaSourceStream;
+use symphonia::core::meta::MetadataOptions;
+use symphonia::core::probe::Hint;
 
 pub struct Player {
     _stream: OutputStream,
@@ -11,6 +15,8 @@ pub struct Player {
     sink: Option<Sink>,
     current_file: Option<String>,
     is_playing: bool,
+    start_time: Option<Instant>,
+    file_duration: Option<Duration>,
 }
 
 impl Player {
@@ -23,12 +29,17 @@ impl Player {
             sink: None,
             current_file: None,
             is_playing: false,
+            start_time: None,
+            file_duration: None,
         })
     }
 
     pub fn play(&mut self, file_path: &Path) -> Result<()> {
         // 既存の再生を停止
         self.stop();
+
+        // ファイルの長さを取得
+        self.file_duration = get_mp3_duration(file_path).ok();
 
         let file = File::open(file_path)?;
         let source = Decoder::new(BufReader::new(file))?;
@@ -42,6 +53,7 @@ impl Player {
         self.sink = Some(sink);
         self.current_file = Some(file_path.to_string_lossy().to_string());
         self.is_playing = true;
+        self.start_time = Some(Instant::now());
 
         Ok(())
     }
@@ -51,9 +63,13 @@ impl Player {
             if self.is_playing {
                 sink.pause();
                 self.is_playing = false;
+                // 一時停止時は開始時刻をリセット
+                self.start_time = None;
             } else {
                 sink.play();
                 self.is_playing = true;
+                // 再開時は新しい開始時刻を設定
+                self.start_time = Some(Instant::now());
             }
         }
     }
@@ -65,6 +81,8 @@ impl Player {
         self.sink = None;
         self.current_file = None;
         self.is_playing = false;
+        self.start_time = None;
+        self.file_duration = None;
     }
 
     pub fn is_playing(&self) -> bool {
@@ -84,14 +102,53 @@ impl Player {
     }
 
     pub fn get_position(&self) -> Duration {
-        // 簡易実装：実際の位置は取得困難なため、固定値または推定値を返す
-        // 本格実装では別途時間追跡機構が必要
-        Duration::from_secs(0)
+        if let (Some(start_time), Some(duration), true) =
+            (self.start_time, self.file_duration, self.is_playing) {
+            let elapsed = start_time.elapsed();
+            // リピート再生なので、ファイル長で割った余りを返す
+            Duration::from_nanos(
+                (elapsed.as_nanos() % duration.as_nanos()) as u64
+            )
+        } else {
+            Duration::from_secs(0)
+        }
     }
 
     pub fn get_duration(&self) -> Duration {
-        // 簡易実装：実際の総時間は取得困難なため、固定値を返す
-        // 本格実装では音声ファイルのメタデータ解析が必要
-        Duration::from_secs(300) // 5分と仮定
+        self.file_duration.unwrap_or(Duration::from_secs(300))
+    }
+}
+
+// MP3ファイルの長さを取得する関数
+fn get_mp3_duration(file_path: &Path) -> Result<Duration> {
+    let file = File::open(file_path)?;
+    let media_source = MediaSourceStream::new(Box::new(file), Default::default());
+
+    let mut hint = Hint::new();
+    hint.with_extension("mp3");
+
+    let format_options = FormatOptions::default();
+    let metadata_options = MetadataOptions::default();
+
+    let probed = symphonia::default::get_probe().format(
+        &hint,
+        media_source,
+        &format_options,
+        &metadata_options,
+    )?;
+
+    let mut format = probed.format;
+    let track = format.tracks().iter().next()
+        .ok_or_else(|| anyhow::anyhow!("No audio tracks found"))?;
+
+    let time_base = track.codec_params.time_base;
+    let frames = track.codec_params.n_frames;
+
+    if let (Some(time_base), Some(frames)) = (time_base, frames) {
+        let seconds = frames as f64 * time_base.numer as f64 / time_base.denom as f64;
+        Ok(Duration::from_secs_f64(seconds))
+    } else {
+        // フレーム数が取得できない場合のフォールバック
+        Ok(Duration::from_secs(300)) // デフォルト5分
     }
 }
