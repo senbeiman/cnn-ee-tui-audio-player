@@ -5,6 +5,7 @@ use anyhow::Result;
 pub struct App {
     pub files: Vec<FileInfo>,
     pub selected: usize,
+    pub scroll_offset: usize,
     pub player: Player,
     pub should_quit: bool,
 }
@@ -21,6 +22,7 @@ impl App {
         Ok(Self {
             files,
             selected: 0,
+            scroll_offset: 0,
             player,
             should_quit: false,
         })
@@ -29,6 +31,13 @@ impl App {
     pub fn select_next(&mut self) {
         if !self.files.is_empty() {
             self.selected = (self.selected + 1) % self.files.len();
+
+            // スクロール調整（10行表示の場合）
+            if self.selected >= self.scroll_offset + 10 {
+                self.scroll_offset = self.selected - 9;
+            } else if self.selected < self.scroll_offset {
+                self.scroll_offset = 0;
+            }
         }
     }
 
@@ -36,8 +45,19 @@ impl App {
         if !self.files.is_empty() {
             if self.selected == 0 {
                 self.selected = self.files.len() - 1;
+                // 最後のアイテムに移動する場合のスクロール調整
+                if self.files.len() > 10 {
+                    self.scroll_offset = self.files.len() - 10;
+                }
             } else {
                 self.selected -= 1;
+            }
+
+            // スクロール調整（10行表示の場合）
+            if self.selected < self.scroll_offset {
+                self.scroll_offset = self.selected;
+            } else if self.selected >= self.scroll_offset + 10 {
+                self.scroll_offset = self.selected - 9;
             }
         }
     }
@@ -94,5 +114,13 @@ impl App {
         let minutes = duration.as_secs() / 60;
         let seconds = duration.as_secs() % 60;
         format!("{:02}:{:02}", minutes, seconds)
+    }
+
+    pub fn current_position_info(&self) -> String {
+        if self.files.is_empty() {
+            String::new()
+        } else {
+            format!("({}/{})", self.selected + 1, self.files.len())
+        }
     }
 }

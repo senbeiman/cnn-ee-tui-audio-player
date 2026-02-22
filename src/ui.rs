@@ -25,7 +25,8 @@ fn draw_ui(f: &mut Frame, app: &App) {
         .constraints([
             Constraint::Length(1), // ヘッダー
             Constraint::Length(1), // プレイヤー
-            Constraint::Min(0),    // ファイルリスト
+            Constraint::Length(12), // ファイルリスト（10行 + ボーダー2行）
+            Constraint::Min(0),    // 残りスペース
             Constraint::Length(1), // フッター
         ])
         .split(f.size());
@@ -45,10 +46,12 @@ fn draw_ui(f: &mut Frame, app: &App) {
         .style(Style::default().fg(Color::Cyan));
     f.render_widget(player, chunks[1]);
 
-    // ファイルリスト
+    // ファイルリスト（スクロール対応）
     let items: Vec<ListItem> = app.files
         .iter()
         .enumerate()
+        .skip(app.scroll_offset)
+        .take(10)
         .map(|(i, file)| {
             let prefix = if i == app.selected { "> " } else { "  " };
             let content = format!("{}{}", prefix, file.name);
@@ -61,15 +64,16 @@ fn draw_ui(f: &mut Frame, app: &App) {
         })
         .collect();
 
+    let list_title = format!("ファイルリスト {}", app.current_position_info());
     let list = List::new(items)
-        .block(Block::default().borders(Borders::ALL).title("ファイルリスト"));
+        .block(Block::default().borders(Borders::ALL).title(list_title));
     f.render_widget(list, chunks[2]);
 
     // フッター
     let footer_text = "[q]終了  [↑↓]選択  [Enter]再生  [Space]停止";
     let footer = Paragraph::new(footer_text)
         .style(Style::default().fg(Color::Yellow));
-    f.render_widget(footer, chunks[3]);
+    f.render_widget(footer, chunks[4]);
 }
 
 fn create_progress_bar(progress: f32) -> String {
