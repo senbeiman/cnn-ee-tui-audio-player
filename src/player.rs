@@ -158,7 +158,7 @@ fn get_mp3_duration(file_path: &Path) -> Result<Duration> {
         &metadata_options,
     )?;
 
-    let mut format = probed.format;
+    let format = probed.format;
     let track = format.tracks().iter().next()
         .ok_or_else(|| anyhow::anyhow!("No audio tracks found"))?;
 
