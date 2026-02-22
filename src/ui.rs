@@ -26,8 +26,8 @@ fn draw_ui(f: &mut Frame, app: &App) {
             Constraint::Length(1), // ヘッダー
             Constraint::Length(1), // プレイヤー
             Constraint::Length(12), // ファイルリスト（10行 + ボーダー2行）
-            Constraint::Min(0),    // 残りスペース
             Constraint::Length(1), // フッター
+            Constraint::Min(0),    // 残りスペース
         ])
         .split(f.size());
 
@@ -73,7 +73,7 @@ fn draw_ui(f: &mut Frame, app: &App) {
     let footer_text = "[q]終了  [j/k]移動  [[/]]ページ送り  [Space]選択/再生/停止  [Esc]上の階層";
     let footer = Paragraph::new(footer_text)
         .style(Style::default().fg(Color::Yellow));
-    f.render_widget(footer, chunks[4]);
+    f.render_widget(footer, chunks[3]);
 }
 
 fn create_progress_bar(progress: f32) -> String {
