@@ -60,8 +60,11 @@ fn run_app(terminal: &mut ui::AppTerminal, app: &mut App) -> Result<()> {
 
 fn handle_key_event(app: &mut App, key: KeyEvent) -> Result<()> {
     match key.code {
-        KeyCode::Char('q') | KeyCode::Esc => {
+        KeyCode::Char('q') => {
             app.quit();
+        }
+        KeyCode::Esc => {
+            app.navigate_up()?;
         }
         KeyCode::Char('k') => {
             app.select_prev();

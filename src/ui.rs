@@ -33,7 +33,7 @@ fn draw_ui(f: &mut Frame, app: &App) {
 
     // ヘッダー
     let status_icon = if app.is_playing() { "♪" } else { "⏸" };
-    let header_text = format!("{} {}", status_icon, app.current_file_name());
+    let header_text = format!("{} {} | {}", status_icon, app.current_file_name(), app.current_directory_display());
     let header = Paragraph::new(header_text)
         .style(Style::default().fg(Color::Green));
     f.render_widget(header, chunks[0]);
@@ -54,7 +54,7 @@ fn draw_ui(f: &mut Frame, app: &App) {
         .take(10)
         .map(|(i, file)| {
             let prefix = if i == app.selected { "> " } else { "  " };
-            let content = format!("{}{}", prefix, file.name);
+            let content = format!("{}{}", prefix, file.display_name());
             let style = if i == app.selected {
                 Style::default().bg(Color::Blue).fg(Color::White)
             } else {
@@ -70,7 +70,7 @@ fn draw_ui(f: &mut Frame, app: &App) {
     f.render_widget(list, chunks[2]);
 
     // フッター
-    let footer_text = "[q]終了  [jk]移動  [Space]選択/再生/停止";
+    let footer_text = "[q]終了  [j]下に移動  [k]上に移動  [Space]選択/再生/停止  [Esc]上の階層";
     let footer = Paragraph::new(footer_text)
         .style(Style::default().fg(Color::Yellow));
     f.render_widget(footer, chunks[4]);

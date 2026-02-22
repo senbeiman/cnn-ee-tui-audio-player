@@ -1,6 +1,8 @@
-use crate::files::{FileInfo, scan_mp3_files};
+use crate::files::{FileInfo, FileType, scan_current_directory};
 use crate::player::Player;
 use anyhow::Result;
+
+use std::path::PathBuf;
 
 pub struct App {
     pub files: Vec<FileInfo>,
@@ -8,15 +10,24 @@ pub struct App {
     pub scroll_offset: usize,
     pub player: Player,
     pub should_quit: bool,
+    pub current_directory: PathBuf,
+    pub root_directory: PathBuf,
 }
 
 impl App {
     pub fn new(dir: &str) -> Result<Self> {
-        let files = scan_mp3_files(dir)?;
+        let root_dir = if dir.is_empty() {
+            PathBuf::from(format!("{}/Downloads", std::env::var("HOME").unwrap_or_default()))
+        } else {
+            PathBuf::from(dir)
+        };
+
+        let current_dir = root_dir.clone();
+        let files = scan_current_directory(&current_dir, &root_dir)?;
         let player = Player::new()?;
 
         if files.is_empty() {
-            anyhow::bail!("MP3ファイルが見つかりません");
+            anyhow::bail!("ファイルが見つかりません");
         }
 
         Ok(Self {
@@ -25,6 +36,8 @@ impl App {
             scroll_offset: 0,
             player,
             should_quit: false,
+            current_directory: current_dir,
+            root_directory: root_dir,
         })
     }
 
@@ -124,18 +137,81 @@ impl App {
         }
     }
 
-    pub fn handle_space_key(&mut self) -> Result<()> {
-        if let Some(selected_file) = self.files.get(self.selected) {
-            let selected_path = selected_file.path.to_string_lossy().to_string();
-            let current_playing = self.player.current_file_name();
-
-            // 選択中のファイルが再生中かどうかをチェック
-            if current_playing != "なし" && selected_file.name == current_playing {
-                // 再生中のファイルが選択されている場合は一時停止/再開
-                self.toggle_pause();
+    pub fn current_directory_display(&self) -> String {
+        // ルートディレクトリからの相対パスを表示
+        if let Ok(relative_path) = self.current_directory.strip_prefix(&self.root_directory) {
+            if relative_path == std::path::Path::new("") {
+                "📁 ルート".to_string()
             } else {
-                // 違うファイルが選択されている場合は新しいファイルを再生
-                self.play_selected()?;
+                format!("📁 {}", relative_path.display())
+            }
+        } else {
+            format!("📁 {}", self.current_directory.display())
+        }
+    }
+
+    pub fn navigate_to_directory(&mut self, target_path: &std::path::Path) -> Result<()> {
+        let new_files = scan_current_directory(target_path, &self.root_directory)?;
+
+        self.files = new_files;
+        self.current_directory = target_path.to_path_buf();
+        self.selected = 0;
+        self.scroll_offset = 0;
+
+        Ok(())
+    }
+
+    pub fn navigate_up(&mut self) -> Result<()> {
+        let parent = self.current_directory.parent().map(|p| p.to_path_buf());
+        if let Some(parent_path) = parent {
+            if parent_path >= self.root_directory {
+                let old_dir_name = self.current_directory
+                    .file_name()
+                    .and_then(|n| n.to_str())
+                    .unwrap_or("")
+                    .to_string();
+
+                self.navigate_to_directory(&parent_path)?;
+
+                // 移動元ディレクトリにカーソルを合わせる
+                if let Some(pos) = self.files.iter().position(|f|
+                    f.file_type == FileType::Directory && f.name == old_dir_name
+                ) {
+                    self.selected = pos;
+                    self.adjust_scroll();
+                }
+            }
+        }
+        Ok(())
+    }
+
+    fn adjust_scroll(&mut self) {
+        if self.selected >= self.scroll_offset + 10 {
+            self.scroll_offset = self.selected - 9;
+        } else if self.selected < self.scroll_offset {
+            self.scroll_offset = self.selected;
+        }
+    }
+
+    pub fn handle_space_key(&mut self) -> Result<()> {
+        if let Some(selected_file) = self.files.get(self.selected).cloned() {
+            match selected_file.file_type {
+                FileType::Directory => {
+                    // ディレクトリの場合は移動
+                    self.navigate_to_directory(&selected_file.path)?;
+                }
+                FileType::Mp3File => {
+                    // MP3ファイルの場合は再生制御
+                    let current_playing = self.player.current_file_name();
+
+                    if current_playing != "なし" && selected_file.name == current_playing {
+                        // 再生中のファイルが選択されている場合は一時停止/再開
+                        self.toggle_pause();
+                    } else {
+                        // 違うファイルが選択されている場合は新しいファイルを再生
+                        self.play_selected()?;
+                    }
+                }
             }
         }
         Ok(())
