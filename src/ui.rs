@@ -41,7 +41,7 @@ fn draw_ui(f: &mut Frame, app: &App) {
     // プレイヤー
     let progress_bar = create_progress_bar(app.progress());
     let time_text = format!("{} / {}", app.current_time_str(), app.total_time_str());
-    let player_text = format!("[{}] {}  🔁", progress_bar, time_text);
+    let player_text = format!("[{}] {}", progress_bar, time_text);
     let player = Paragraph::new(player_text)
         .style(Style::default().fg(Color::Cyan));
     f.render_widget(player, chunks[1]);
@@ -53,7 +53,15 @@ fn draw_ui(f: &mut Frame, app: &App) {
         .skip(app.scroll_offset)
         .take(10)
         .map(|(i, file)| {
-            let play_icon = if app.is_file_playing(file) { "♪ " } else { "  " };
+            let play_icon = if app.is_file_playing(file) {
+                if app.current_playback_repeat() {
+                    "🔁" // 現在の再生がリピートオン：リピートアイコン
+                } else {
+                    "▶ " // 現在の再生がリピートオフ：1回再生アイコン
+                }
+            } else {
+                "  " // 再生していない
+            };
             let content = format!("{}{}", play_icon, file.display_name());
             let style = if i == app.selected {
                 Style::default().fg(Color::Green)
@@ -70,7 +78,7 @@ fn draw_ui(f: &mut Frame, app: &App) {
     f.render_widget(list, chunks[2]);
 
     // フッター
-    let footer_text = "[q]終了  [j/k]移動  [[/]]ページ送り  [Space]選択/再生/停止  [Esc]上の階層";
+    let footer_text = "[q]終了  [j/k]移動  [[/]]ページ送り  [Space]選択/再生/停止  [r]リピート再生  [Esc]上の階層";
     let footer = Paragraph::new(footer_text)
         .style(Style::default().fg(Color::Yellow));
     f.render_widget(footer, chunks[3]);

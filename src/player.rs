@@ -18,6 +18,7 @@ pub struct Player {
     start_time: Option<Instant>,
     file_duration: Option<Duration>,
     elapsed_before_pause: Duration,
+    current_playback_repeat: bool, // 現在再生中のファイルがリピートで開始されたかどうか
 }
 
 impl Player {
@@ -33,10 +34,19 @@ impl Player {
             start_time: None,
             file_duration: None,
             elapsed_before_pause: Duration::from_secs(0),
+            current_playback_repeat: false,
         })
     }
 
     pub fn play(&mut self, file_path: &Path) -> Result<()> {
+        self.play_internal(file_path, false)
+    }
+
+    pub fn play_repeat(&mut self, file_path: &Path) -> Result<()> {
+        self.play_internal(file_path, true)
+    }
+
+    fn play_internal(&mut self, file_path: &Path, repeat: bool) -> Result<()> {
         // 既存の再生を停止
         self.stop();
 
@@ -46,17 +56,22 @@ impl Player {
         let file = File::open(file_path)?;
         let source = Decoder::new(BufReader::new(file))?;
 
-        // 自動リピート用にソースを無限ループ
-        let repeating_source = source.repeat_infinite();
-
         let sink = Sink::try_new(&self.handle)?;
-        sink.append(repeating_source);
+
+        if repeat {
+            // リピート再生：無限ループ
+            sink.append(source.repeat_infinite());
+        } else {
+            // 通常再生：1回だけ再生
+            sink.append(source);
+        }
 
         self.sink = Some(sink);
         self.current_file = Some(file_path.to_string_lossy().to_string());
         self.is_playing = true;
         self.start_time = Some(Instant::now());
         self.elapsed_before_pause = Duration::from_secs(0);
+        self.current_playback_repeat = repeat;
 
         Ok(())
     }
@@ -90,9 +105,29 @@ impl Player {
         self.start_time = None;
         self.file_duration = None;
         self.elapsed_before_pause = Duration::from_secs(0);
+        self.current_playback_repeat = false;
     }
 
     pub fn is_playing(&self) -> bool {
+        // 現在再生中のファイルがリピートオフで開始され、曲が終了している場合は停止状態とする
+        if !self.current_playback_repeat {
+            if let Some(duration) = self.file_duration {
+                let total_elapsed = if self.is_playing {
+                    if let Some(start_time) = self.start_time {
+                        self.elapsed_before_pause + start_time.elapsed()
+                    } else {
+                        self.elapsed_before_pause
+                    }
+                } else {
+                    self.elapsed_before_pause
+                };
+
+                if total_elapsed >= duration {
+                    return false;
+                }
+            }
+        }
+
         self.is_playing
     }
 
@@ -122,11 +157,20 @@ impl Player {
                 self.elapsed_before_pause
             };
 
-            // リピート再生なので、ファイル長で割った余りを返す
             if duration.as_nanos() > 0 {
-                Duration::from_nanos(
-                    (total_elapsed.as_nanos() % duration.as_nanos()) as u64
-                )
+                if self.current_playback_repeat {
+                    // 現在の再生がリピートオン：ファイル長で割った余りを返す（無限リピート）
+                    Duration::from_nanos(
+                        (total_elapsed.as_nanos() % duration.as_nanos()) as u64
+                    )
+                } else {
+                    // 現在の再生がリピートオフ：ファイル長を超えたら終了位置で固定
+                    if total_elapsed >= duration {
+                        duration
+                    } else {
+                        total_elapsed
+                    }
+                }
             } else {
                 Duration::from_secs(0)
             }
@@ -137,6 +181,10 @@ impl Player {
 
     pub fn get_duration(&self) -> Duration {
         self.file_duration.unwrap_or(Duration::from_secs(0))
+    }
+
+    pub fn current_playback_repeat(&self) -> bool {
+        self.current_playback_repeat
     }
 }
 

@@ -81,6 +81,9 @@ fn handle_key_event(app: &mut App, key: KeyEvent) -> Result<()> {
         KeyCode::Char(' ') => {
             app.handle_space_key()?;
         }
+        KeyCode::Char('r') => {
+            app.play_selected_repeat()?;
+        }
         _ => {}
     }
 

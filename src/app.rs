@@ -82,6 +82,13 @@ impl App {
         Ok(())
     }
 
+    pub fn play_selected_repeat(&mut self) -> Result<()> {
+        if let Some(file) = self.files.get(self.selected) {
+            self.player.play_repeat(&file.path)?;
+        }
+        Ok(())
+    }
+
     pub fn toggle_pause(&mut self) {
         self.player.toggle_pause();
     }
@@ -269,5 +276,9 @@ impl App {
                 self.selected = self.files.len() - 1;
             }
         }
+    }
+
+    pub fn current_playback_repeat(&self) -> bool {
+        self.player.current_playback_repeat()
     }
 }
