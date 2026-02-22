@@ -63,17 +63,14 @@ fn handle_key_event(app: &mut App, key: KeyEvent) -> Result<()> {
         KeyCode::Char('q') | KeyCode::Esc => {
             app.quit();
         }
-        KeyCode::Up => {
+        KeyCode::Char('k') => {
             app.select_prev();
         }
-        KeyCode::Down => {
+        KeyCode::Char('j') => {
             app.select_next();
         }
-        KeyCode::Enter => {
-            app.play_selected()?;
-        }
         KeyCode::Char(' ') => {
-            app.toggle_pause();
+            app.handle_space_key()?;
         }
         _ => {}
     }

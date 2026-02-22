@@ -70,7 +70,7 @@ fn draw_ui(f: &mut Frame, app: &App) {
     f.render_widget(list, chunks[2]);
 
     // フッター
-    let footer_text = "[q]終了  [↑↓]選択  [Enter]再生  [Space]停止";
+    let footer_text = "[q]終了  [jk]移動  [Space]選択/再生/停止";
     let footer = Paragraph::new(footer_text)
         .style(Style::default().fg(Color::Yellow));
     f.render_widget(footer, chunks[4]);

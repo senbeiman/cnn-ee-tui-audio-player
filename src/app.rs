@@ -123,4 +123,21 @@ impl App {
             format!("({}/{})", self.selected + 1, self.files.len())
         }
     }
+
+    pub fn handle_space_key(&mut self) -> Result<()> {
+        if let Some(selected_file) = self.files.get(self.selected) {
+            let selected_path = selected_file.path.to_string_lossy().to_string();
+            let current_playing = self.player.current_file_name();
+
+            // 選択中のファイルが再生中かどうかをチェック
+            if current_playing != "なし" && selected_file.name == current_playing {
+                // 再生中のファイルが選択されている場合は一時停止/再開
+                self.toggle_pause();
+            } else {
+                // 違うファイルが選択されている場合は新しいファイルを再生
+                self.play_selected()?;
+            }
+        }
+        Ok(())
+    }
 }
