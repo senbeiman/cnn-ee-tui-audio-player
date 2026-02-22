@@ -221,4 +221,39 @@ impl App {
         }
         Ok(())
     }
+
+    pub fn page_up(&mut self) {
+        if self.files.is_empty() {
+            return;
+        }
+
+        // 現在のscroll_offsetから10件戻る
+        if self.scroll_offset >= 10 {
+            self.scroll_offset -= 10;
+            self.selected = self.scroll_offset;
+        } else {
+            self.scroll_offset = 0;
+            self.selected = 0;
+        }
+    }
+
+    pub fn page_down(&mut self) {
+        if self.files.is_empty() {
+            return;
+        }
+
+        // 現在のscroll_offsetから10件進む
+        if self.scroll_offset + 20 < self.files.len() {
+            self.scroll_offset += 10;
+            self.selected = self.scroll_offset;
+        } else {
+            // 最後のページの場合
+            if self.files.len() > 10 {
+                self.scroll_offset = self.files.len() - 10;
+                self.selected = self.files.len() - 1;
+            } else {
+                self.selected = self.files.len() - 1;
+            }
+        }
+    }
 }
