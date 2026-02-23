@@ -132,6 +132,25 @@ impl Player {
     }
 
     pub fn current_file_name(&self) -> String {
+        // 1回再生で終了している場合は"なし"を返す
+        if !self.current_playback_repeat {
+            if let Some(duration) = self.file_duration {
+                let total_elapsed = if self.is_playing {
+                    if let Some(start_time) = self.start_time {
+                        self.elapsed_before_pause + start_time.elapsed()
+                    } else {
+                        self.elapsed_before_pause
+                    }
+                } else {
+                    self.elapsed_before_pause
+                };
+
+                if total_elapsed >= duration {
+                    return "なし".to_string();
+                }
+            }
+        }
+
         self.current_file.as_ref()
             .map(|path| {
                 Path::new(path)

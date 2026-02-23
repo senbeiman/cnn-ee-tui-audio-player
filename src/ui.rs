@@ -32,7 +32,15 @@ fn draw_ui(f: &mut Frame, app: &App) {
         .split(f.size());
 
     // ヘッダー
-    let status_icon = if app.is_playing() { "♪" } else { "⏸" };
+    let status_icon = if app.is_playing() {
+        if app.current_playback_repeat() {
+            "🔁" // リピート再生中
+        } else {
+            "▶" // 通常再生中
+        }
+    } else {
+        "⏸" // 停止中
+    };
     let header_text = format!("{} {} | {}", status_icon, app.current_file_name(), app.current_directory_display());
     let header = Paragraph::new(header_text)
         .style(Style::default().fg(Color::Green));
