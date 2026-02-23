@@ -49,6 +49,9 @@ fn run_app(terminal: &mut ui::AppTerminal, app: &mut App) -> Result<()> {
             }
         }
 
+        // 連続再生の更新処理
+        app.update()?;
+
         // 終了条件チェック
         if app.should_quit {
             break;
@@ -78,11 +81,20 @@ fn handle_key_event(app: &mut App, key: KeyEvent) -> Result<()> {
         KeyCode::Char(']') => {
             app.page_down();
         }
+        KeyCode::Char('s') => {
+            app.play_selected()?;
+        }
         KeyCode::Char(' ') => {
-            app.handle_space_key()?;
+            app.toggle_pause();
+        }
+        KeyCode::Enter => {
+            app.handle_enter_key()?;
         }
         KeyCode::Char('r') => {
             app.play_selected_repeat()?;
+        }
+        KeyCode::Char('c') => {
+            app.play_selected_continuous()?;
         }
         _ => {}
     }

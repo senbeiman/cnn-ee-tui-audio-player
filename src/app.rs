@@ -89,6 +89,13 @@ impl App {
         Ok(())
     }
 
+    pub fn play_selected_continuous(&mut self) -> Result<()> {
+        if let Some(file) = self.files.get(self.selected) {
+            self.player.play_continuous(&file.path)?;
+        }
+        Ok(())
+    }
+
     pub fn toggle_pause(&mut self) {
         self.player.toggle_pause();
     }
@@ -205,7 +212,7 @@ impl App {
         }
     }
 
-    pub fn handle_space_key(&mut self) -> Result<()> {
+    pub fn handle_enter_key(&mut self) -> Result<()> {
         if let Some(selected_file) = self.files.get(self.selected).cloned() {
             match selected_file.file_type {
                 FileType::Directory => {
@@ -213,16 +220,7 @@ impl App {
                     self.navigate_to_directory(&selected_file.path)?;
                 }
                 FileType::Mp3File => {
-                    // MP3ファイルの場合は再生制御
-                    let current_playing = self.player.current_file_name();
-
-                    if current_playing != "なし" && selected_file.name == current_playing {
-                        // 再生中のファイルが選択されている場合は一時停止/再開
-                        self.toggle_pause();
-                    } else {
-                        // 違うファイルが選択されている場合は新しいファイルを再生
-                        self.play_selected()?;
-                    }
+                    // MP3ファイルは何もしない（sキーで再生開始）
                 }
             }
         }
@@ -278,7 +276,44 @@ impl App {
         }
     }
 
-    pub fn current_playback_repeat(&self) -> bool {
-        self.player.current_playback_repeat()
+
+    pub fn playback_mode(&self) -> crate::player::PlaybackMode {
+        self.player.playback_mode()
+    }
+
+    pub fn has_current_file(&self) -> bool {
+        self.player.has_current_file()
+    }
+
+    pub fn get_next_mp3_file(&self, current_index: usize) -> Option<usize> {
+        for i in (current_index + 1)..self.files.len() {
+            if self.files[i].file_type == crate::files::FileType::Mp3File {
+                return Some(i);
+            }
+        }
+        None
+    }
+
+    pub fn update(&mut self) -> Result<()> {
+        // 連続再生モードでトラック終了をチェック
+        if self.player.playback_mode() == crate::player::PlaybackMode::Continuous {
+            if self.player.is_track_finished() && !self.player.is_playing() {
+                // 現在再生中のファイルを特定
+                let current_playing = self.player.current_file_name();
+                if let Some(current_index) = self.files.iter().position(|f| f.name == current_playing) {
+                    // 次のMP3ファイルを検索
+                    if let Some(next_index) = self.get_next_mp3_file(current_index) {
+                        // 次のトラックを再生（選択位置は維持）
+                        if let Some(next_file) = self.files.get(next_index) {
+                            self.player.play_continuous(&next_file.path)?;
+                        }
+                    } else {
+                        // 最後のトラックに到達：連続再生終了
+                        self.player.stop();
+                    }
+                }
+            }
+        }
+        Ok(())
     }
 }
