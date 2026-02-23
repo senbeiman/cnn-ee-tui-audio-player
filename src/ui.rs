@@ -72,6 +72,8 @@ fn draw_ui(f: &mut Frame, app: &App) {
                     crate::player::PlaybackMode::Continuous => "⏭️", // 連続再生中
                     crate::player::PlaybackMode::Single => "▶️", // 通常再生中
                 }
+            } else if file.file_type == crate::files::FileType::Directory {
+                "📁" // ディレクトリアイコン
             } else {
                 "  " // 再生していない
             };

@@ -26,10 +26,7 @@ impl FileInfo {
     }
 
     pub fn display_name(&self) -> String {
-        match self.file_type {
-            FileType::Directory => format!("📁 {}", self.name),
-            FileType::Mp3File => self.name.clone(),
-        }
+        self.name.clone()
     }
 }
 
