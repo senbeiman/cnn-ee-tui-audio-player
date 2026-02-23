@@ -75,7 +75,7 @@ fn draw_ui(f: &mut Frame, app: &App) {
             } else {
                 "  " // 再生していない
             };
-            let content = format!("{}{}", play_icon, file.display_name());
+            let content = format!("{} {}", play_icon, file.display_name());
             let style = if i == app.selected {
                 Style::default().fg(Color::Green)
             } else {
