@@ -1,4 +1,4 @@
-# TUI Media Player
+# CNN EE TUI Audio Player
 
 [CNN English Express](https://ee.asahipress.com/latest-issue/) の音声ファイルをCLIで再生するための専用TUIプレイヤーです。
 
