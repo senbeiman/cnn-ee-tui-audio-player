@@ -1,5 +1,5 @@
-use std::path::{Path, PathBuf};
 use anyhow::Result;
+use std::path::{Path, PathBuf};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum FileType {
@@ -22,11 +22,44 @@ impl FileInfo {
             .unwrap_or("Unknown")
             .to_string();
 
-        Self { path, name, file_type }
+        Self {
+            path,
+            name,
+            file_type,
+        }
     }
 
     pub fn display_name(&self) -> String {
         self.name.clone()
+    }
+
+    pub fn playback_title(&self) -> String {
+        strip_number_prefix(&self.name).to_string()
+    }
+}
+
+fn strip_number_prefix(name: &str) -> &str {
+    let digit_end = name
+        .char_indices()
+        .take_while(|(_, ch)| ch.is_ascii_digit())
+        .map(|(index, ch)| index + ch.len_utf8())
+        .last();
+
+    let Some(digit_end) = digit_end else {
+        return name;
+    };
+
+    let rest = &name[digit_end..];
+    let whitespace_end = rest
+        .char_indices()
+        .take_while(|(_, ch)| ch.is_whitespace())
+        .map(|(index, ch)| index + ch.len_utf8())
+        .last();
+
+    if let Some(whitespace_end) = whitespace_end {
+        &rest[whitespace_end..]
+    } else {
+        name
     }
 }
 
@@ -68,3 +101,36 @@ pub fn scan_current_directory(current_dir: &Path, _root_dir: &Path) -> Result<Ve
     Ok(files)
 }
 
+#[cfg(test)]
+mod tests {
+    use super::strip_number_prefix;
+
+    #[test]
+    fn strips_ascii_number_followed_by_full_width_space() {
+        assert_eq!(
+            strip_number_prefix("01　Cinema Update.mp3"),
+            "Cinema Update.mp3"
+        );
+    }
+
+    #[test]
+    fn strips_ascii_number_followed_by_half_width_space() {
+        assert_eq!(
+            strip_number_prefix("33 News Selection.mp3"),
+            "News Selection.mp3"
+        );
+    }
+
+    #[test]
+    fn keeps_names_without_number_prefix() {
+        assert_eq!(
+            strip_number_prefix("Cinema Update.mp3"),
+            "Cinema Update.mp3"
+        );
+    }
+
+    #[test]
+    fn keeps_leading_digits_without_separator() {
+        assert_eq!(strip_number_prefix("360.mp3"), "360.mp3");
+    }
+}

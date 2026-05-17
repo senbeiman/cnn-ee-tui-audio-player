@@ -1,4 +1,4 @@
-use crate::files::{FileInfo, FileType, scan_current_directory};
+use crate::files::{scan_current_directory, FileInfo, FileType};
 use crate::player::Player;
 use anyhow::Result;
 
@@ -12,12 +12,16 @@ pub struct App {
     pub should_quit: bool,
     pub current_directory: PathBuf,
     pub root_directory: PathBuf,
+    playback_title: Option<String>,
 }
 
 impl App {
     pub fn new(dir: &str) -> Result<Self> {
         let root_dir = if dir.is_empty() {
-            PathBuf::from(format!("{}/Downloads", std::env::var("HOME").unwrap_or_default()))
+            PathBuf::from(format!(
+                "{}/Downloads",
+                std::env::var("HOME").unwrap_or_default()
+            ))
         } else {
             PathBuf::from(dir)
         };
@@ -38,6 +42,7 @@ impl App {
             should_quit: false,
             current_directory: current_dir,
             root_directory: root_dir,
+            playback_title: None,
         })
     }
 
@@ -77,21 +82,10 @@ impl App {
 
     pub fn play_selected(&mut self) -> Result<()> {
         if let Some(file) = self.files.get(self.selected) {
-            self.player.play(&file.path)?;
-        }
-        Ok(())
-    }
-
-    pub fn play_selected_repeat(&mut self) -> Result<()> {
-        if let Some(file) = self.files.get(self.selected) {
-            self.player.play_repeat(&file.path)?;
-        }
-        Ok(())
-    }
-
-    pub fn play_selected_continuous(&mut self) -> Result<()> {
-        if let Some(file) = self.files.get(self.selected) {
-            self.player.play_continuous(&file.path)?;
+            if file.file_type == FileType::Mp3File {
+                self.playback_title = Some(file.playback_title());
+                self.player.play(&file.path)?;
+            }
         }
         Ok(())
     }
@@ -184,7 +178,8 @@ impl App {
         let parent = self.current_directory.parent().map(|p| p.to_path_buf());
         if let Some(parent_path) = parent {
             if parent_path >= self.root_directory {
-                let old_dir_name = self.current_directory
+                let old_dir_name = self
+                    .current_directory
                     .file_name()
                     .and_then(|n| n.to_str())
                     .unwrap_or("")
@@ -193,9 +188,11 @@ impl App {
                 self.navigate_to_directory(&parent_path)?;
 
                 // 移動元ディレクトリにカーソルを合わせる
-                if let Some(pos) = self.files.iter().position(|f|
-                    f.file_type == FileType::Directory && f.name == old_dir_name
-                ) {
+                if let Some(pos) = self
+                    .files
+                    .iter()
+                    .position(|f| f.file_type == FileType::Directory && f.name == old_dir_name)
+                {
                     self.selected = pos;
                     self.adjust_scroll();
                 }
@@ -220,7 +217,7 @@ impl App {
                     self.navigate_to_directory(&selected_file.path)?;
                 }
                 FileType::Mp3File => {
-                    // MP3ファイルは何もしない（sキーで再生開始）
+                    // MP3ファイルは何もしない（pキーで再生開始）
                 }
             }
         }
@@ -276,42 +273,41 @@ impl App {
         }
     }
 
-
-    pub fn playback_mode(&self) -> crate::player::PlaybackMode {
-        self.player.playback_mode()
-    }
-
     pub fn has_current_file(&self) -> bool {
         self.player.has_current_file()
     }
 
-    pub fn get_next_mp3_file(&self, current_index: usize) -> Option<usize> {
+    pub fn get_next_matching_mp3_file(&self, current_index: usize) -> Option<usize> {
+        let playback_title = self.playback_title.as_ref()?;
+
         for i in (current_index + 1)..self.files.len() {
-            if self.files[i].file_type == crate::files::FileType::Mp3File {
-                return Some(i);
+            let file = &self.files[i];
+            if file.file_type == crate::files::FileType::Mp3File {
+                if file.playback_title() == *playback_title {
+                    return Some(i);
+                }
+                return None;
             }
         }
         None
     }
 
     pub fn update(&mut self) -> Result<()> {
-        // 連続再生モードでトラック終了をチェック
-        if self.player.playback_mode() == crate::player::PlaybackMode::Continuous {
-            if self.player.is_track_finished() && !self.player.is_playing() {
-                // 現在再生中のファイルを特定
-                let current_playing = self.player.current_file_name();
-                if let Some(current_index) = self.files.iter().position(|f| f.name == current_playing) {
-                    // 次のMP3ファイルを検索
-                    if let Some(next_index) = self.get_next_mp3_file(current_index) {
-                        // 次のトラックを再生（選択位置は維持）
-                        if let Some(next_file) = self.files.get(next_index) {
-                            self.player.play_continuous(&next_file.path)?;
-                        }
-                    } else {
-                        // 最後のトラックに到達：連続再生終了
-                        self.player.stop();
+        if self.player.is_track_finished() && !self.player.is_playing() {
+            // 現在再生中のファイルを特定
+            let current_playing = self.player.current_file_name();
+            if let Some(current_index) = self.files.iter().position(|f| f.name == current_playing) {
+                if let Some(next_index) = self.get_next_matching_mp3_file(current_index) {
+                    if let Some(next_file) = self.files.get(next_index) {
+                        self.player.play(&next_file.path)?;
                     }
+                } else {
+                    self.player.stop();
+                    self.playback_title = None;
                 }
+            } else {
+                self.player.stop();
+                self.playback_title = None;
             }
         }
         Ok(())

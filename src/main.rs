@@ -3,8 +3,8 @@ mod files;
 mod player;
 mod ui;
 
-use app::App;
 use anyhow::Result;
+use app::App;
 use crossterm::event::{self, Event, KeyCode, KeyEvent};
 use std::time::Duration;
 
@@ -49,7 +49,7 @@ fn run_app(terminal: &mut ui::AppTerminal, app: &mut App) -> Result<()> {
             }
         }
 
-        // 連続再生の更新処理
+        // タイトル単位再生の更新処理
         app.update()?;
 
         // 終了条件チェック
@@ -81,7 +81,7 @@ fn handle_key_event(app: &mut App, key: KeyEvent) -> Result<()> {
         KeyCode::Char(']') => {
             app.page_down();
         }
-        KeyCode::Char('s') => {
+        KeyCode::Char('p') => {
             app.play_selected()?;
         }
         KeyCode::Char(' ') => {
@@ -89,12 +89,6 @@ fn handle_key_event(app: &mut App, key: KeyEvent) -> Result<()> {
         }
         KeyCode::Enter => {
             app.handle_enter_key()?;
-        }
-        KeyCode::Char('r') => {
-            app.play_selected_repeat()?;
-        }
-        KeyCode::Char('c') => {
-            app.play_selected_continuous()?;
         }
         _ => {}
     }
