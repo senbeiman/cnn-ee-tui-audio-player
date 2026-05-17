@@ -1,32 +1,62 @@
 # TUI Media Player
 
-英語学習専用のターミナル音楽プレイヤーです。
+[CNN English Express](https://ee.asahipress.com/latest-issue/) の音声ファイルをCLIで再生するための専用TUIプレイヤーです。
+
+CNN EEの音声ファイル名に付く先頭番号を除いて同名判定し、同じ記事・セクションの音声だけを続けて再生します。
 
 ## 機能
 
-- MP3ファイルの一覧表示・選択・再生
-- リピート再生・連続再生可能
+- CNN EEのMP3ファイル一覧表示・選択・再生
+- 先頭番号を除いた同名トラックの連続再生
 - シンプルなキーボード操作
 - 日本語ファイル名対応
 - 進捗表示
 
 ## 使い方
 
-### インストール
+### インストール・更新
+
+Rustをインストール済みの環境では、リポジトリのルートで次を実行します。
 
 ```bash
-# Rustをインストール済みの場合
-cargo build --release
+cargo install --path . --force
 ```
 
-### 実行
+このコマンドは現在のソースコードをビルドし、`tui-media-player` コマンドとして `~/.cargo/bin` にインストールします。すでにインストール済みの場合も最新版で上書きします。
+
+`tui-media-player` が見つからない場合は、`~/.cargo/bin` にPATHが通っているか確認してください。
+
+```bash
+echo $PATH
+which tui-media-player
+```
+
+zshの場合は `~/.zshrc` に次の設定があれば使えます。
+
+```bash
+export PATH="$HOME/.cargo/bin:$PATH"
+```
+
+### 起動
 
 ```bash
 # デフォルトディレクトリ（~/Downloads）を使用
-./target/release/tui-media-player
+tui-media-player
 
 # 任意のディレクトリを指定
-./target/release/tui-media-player /path/to/music/directory
+tui-media-player /path/to/music/directory
+```
+
+### キー操作
+
+```text
+j / k  選択を下/上へ移動
+[ / ]  前/次ページへ移動
+Enter  ディレクトリに入る
+Esc    上のディレクトリに戻る
+p      再生（同名なら連続再生）
+Space  一時停止・再開
+q      終了
 ```
 
 ## 技術仕様
