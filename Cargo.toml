@@ -1,9 +1,13 @@
 [package]
-name = "tui-media-player"
+name = "cnn-ee-tui-audio-player"
 version = "0.1.0"
 edition = "2021"
 authors = ["akiko.kusaka"]
 description = "Terminal-based music player for English learning"
+
+[[bin]]
+name = "play-cnnee"
+path = "src/main.rs"
 
 [dependencies]
 ratatui = "0.24"

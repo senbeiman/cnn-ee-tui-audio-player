@@ -194,7 +194,7 @@ fn progress_bar(progress: f32) -> String {
 cargo build --release
 
 # 実行
-./target/release/tui-media-player ~/Downloads/2603/音声DL/
+./target/release/play-cnnee ~/Downloads/2603/音声DL/
 ```
 
 ## 5. ファイル構成
