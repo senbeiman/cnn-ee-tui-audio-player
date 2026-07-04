@@ -57,21 +57,21 @@ fn draw_ui(f: &mut Frame, app: &App) {
     f.render_widget(player, chunks[1]);
 
     // ファイルリスト（スクロール対応）
-    let items: Vec<ListItem> = app
-        .files
+    let entries = app.list_entries();
+    let items: Vec<ListItem> = entries
         .iter()
         .enumerate()
         .skip(app.scroll_offset)
         .take(10)
-        .map(|(i, file)| {
-            let play_icon = if app.is_file_playing(file) {
+        .map(|(i, entry)| {
+            let play_icon = if app.is_list_entry_playing(entry) {
                 "▶️"
-            } else if file.file_type == crate::files::FileType::Directory {
+            } else if entry.file_type == crate::files::FileType::Directory {
                 "📁" // ディレクトリアイコン
             } else {
                 "  " // 再生していない
             };
-            let content = format!("{} {}", play_icon, file.display_name());
+            let content = format!("{} {}", play_icon, entry.display_name);
             let style = if i == app.selected {
                 Style::default().fg(Color::Green)
             } else {

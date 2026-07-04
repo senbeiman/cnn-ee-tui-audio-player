@@ -14,6 +14,14 @@ pub struct FileInfo {
     pub file_type: FileType,
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub struct FileListEntry {
+    pub file_index: usize,
+    pub file_count: usize,
+    pub display_name: String,
+    pub file_type: FileType,
+}
+
 impl FileInfo {
     pub fn new(path: PathBuf, file_type: FileType) -> Self {
         let name = path
@@ -38,7 +46,91 @@ impl FileInfo {
     }
 }
 
+pub fn build_file_list_entries(files: &[FileInfo]) -> Vec<FileListEntry> {
+    let mut entries = Vec::new();
+    let mut index = 0;
+
+    while index < files.len() {
+        let file = &files[index];
+
+        if file.file_type == FileType::Directory {
+            entries.push(FileListEntry {
+                file_index: index,
+                file_count: 1,
+                display_name: file.display_name(),
+                file_type: FileType::Directory,
+            });
+            index += 1;
+            continue;
+        }
+
+        let playback_title = file.playback_title();
+        let mut file_count = 1;
+
+        while index + file_count < files.len() {
+            let next_file = &files[index + file_count];
+            if next_file.file_type != FileType::Mp3File
+                || next_file.playback_title() != playback_title
+            {
+                break;
+            }
+            file_count += 1;
+        }
+
+        let display_name = build_mp3_display_name(files, index, file_count, &playback_title);
+
+        entries.push(FileListEntry {
+            file_index: index,
+            file_count,
+            display_name,
+            file_type: FileType::Mp3File,
+        });
+
+        index += file_count;
+    }
+
+    entries
+}
+
+fn build_mp3_display_name(
+    files: &[FileInfo],
+    first_index: usize,
+    file_count: usize,
+    playback_title: &str,
+) -> String {
+    let first_number = number_prefix(&files[first_index].name);
+
+    let Some(first_number) = first_number else {
+        return playback_title.to_string();
+    };
+
+    if file_count == 1 {
+        return format!("{} {}", first_number, playback_title);
+    }
+
+    let last_index = first_index + file_count - 1;
+    if let Some(last_number) = number_prefix(&files[last_index].name) {
+        if first_number != last_number {
+            return format!("{}-{} {}", first_number, last_number, playback_title);
+        }
+    }
+
+    format!("{} {}", first_number, playback_title)
+}
+
 fn strip_number_prefix(name: &str) -> &str {
+    if let Some((_, title)) = split_number_prefix(name) {
+        title
+    } else {
+        name
+    }
+}
+
+fn number_prefix(name: &str) -> Option<&str> {
+    split_number_prefix(name).map(|(number, _)| number)
+}
+
+fn split_number_prefix(name: &str) -> Option<(&str, &str)> {
     let digit_end = name
         .char_indices()
         .take_while(|(_, ch)| ch.is_ascii_digit())
@@ -46,7 +138,7 @@ fn strip_number_prefix(name: &str) -> &str {
         .last();
 
     let Some(digit_end) = digit_end else {
-        return name;
+        return None;
     };
 
     let rest = &name[digit_end..];
@@ -57,9 +149,9 @@ fn strip_number_prefix(name: &str) -> &str {
         .last();
 
     if let Some(whitespace_end) = whitespace_end {
-        &rest[whitespace_end..]
+        Some((&name[..digit_end], &rest[whitespace_end..]))
     } else {
-        name
+        None
     }
 }
 
@@ -103,7 +195,8 @@ pub fn scan_current_directory(current_dir: &Path, _root_dir: &Path) -> Result<Ve
 
 #[cfg(test)]
 mod tests {
-    use super::strip_number_prefix;
+    use super::{build_file_list_entries, strip_number_prefix, FileInfo, FileListEntry, FileType};
+    use std::path::PathBuf;
 
     #[test]
     fn strips_ascii_number_followed_by_full_width_space() {
@@ -132,5 +225,78 @@ mod tests {
     #[test]
     fn keeps_leading_digits_without_separator() {
         assert_eq!(strip_number_prefix("360.mp3"), "360.mp3");
+    }
+
+    #[test]
+    fn groups_consecutive_mp3_files_with_same_playback_title() {
+        let files = vec![
+            FileInfo {
+                path: PathBuf::from("01 Cinema Update.mp3"),
+                name: "01 Cinema Update.mp3".to_string(),
+                file_type: FileType::Mp3File,
+            },
+            FileInfo {
+                path: PathBuf::from("02 Cinema Update.mp3"),
+                name: "02 Cinema Update.mp3".to_string(),
+                file_type: FileType::Mp3File,
+            },
+            FileInfo {
+                path: PathBuf::from("03 News Selection.mp3"),
+                name: "03 News Selection.mp3".to_string(),
+                file_type: FileType::Mp3File,
+            },
+        ];
+
+        assert_eq!(
+            build_file_list_entries(&files),
+            vec![
+                FileListEntry {
+                    file_index: 0,
+                    file_count: 2,
+                    display_name: "01-02 Cinema Update.mp3".to_string(),
+                    file_type: FileType::Mp3File,
+                },
+                FileListEntry {
+                    file_index: 2,
+                    file_count: 1,
+                    display_name: "03 News Selection.mp3".to_string(),
+                    file_type: FileType::Mp3File,
+                },
+            ]
+        );
+    }
+
+    #[test]
+    fn keeps_directories_as_individual_entries() {
+        let files = vec![
+            FileInfo {
+                path: PathBuf::from("April"),
+                name: "April".to_string(),
+                file_type: FileType::Directory,
+            },
+            FileInfo {
+                path: PathBuf::from("01 Cinema Update.mp3"),
+                name: "01 Cinema Update.mp3".to_string(),
+                file_type: FileType::Mp3File,
+            },
+        ];
+
+        assert_eq!(
+            build_file_list_entries(&files),
+            vec![
+                FileListEntry {
+                    file_index: 0,
+                    file_count: 1,
+                    display_name: "April".to_string(),
+                    file_type: FileType::Directory,
+                },
+                FileListEntry {
+                    file_index: 1,
+                    file_count: 1,
+                    display_name: "01 Cinema Update.mp3".to_string(),
+                    file_type: FileType::Mp3File,
+                },
+            ]
+        );
     }
 }

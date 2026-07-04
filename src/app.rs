@@ -1,4 +1,6 @@
-use crate::files::{scan_current_directory, FileInfo, FileType};
+use crate::files::{
+    build_file_list_entries, scan_current_directory, FileInfo, FileListEntry, FileType,
+};
 use crate::player::Player;
 use anyhow::Result;
 
@@ -47,8 +49,9 @@ impl App {
     }
 
     pub fn select_next(&mut self) {
-        if !self.files.is_empty() {
-            self.selected = (self.selected + 1) % self.files.len();
+        let list_len = self.list_len();
+        if list_len > 0 {
+            self.selected = (self.selected + 1) % list_len;
 
             // スクロール調整（10行表示の場合）
             if self.selected >= self.scroll_offset + 10 {
@@ -60,12 +63,13 @@ impl App {
     }
 
     pub fn select_prev(&mut self) {
-        if !self.files.is_empty() {
+        let list_len = self.list_len();
+        if list_len > 0 {
             if self.selected == 0 {
-                self.selected = self.files.len() - 1;
+                self.selected = list_len - 1;
                 // 最後のアイテムに移動する場合のスクロール調整
-                if self.files.len() > 10 {
-                    self.scroll_offset = self.files.len() - 10;
+                if list_len > 10 {
+                    self.scroll_offset = list_len - 10;
                 }
             } else {
                 self.selected -= 1;
@@ -81,10 +85,12 @@ impl App {
     }
 
     pub fn play_selected(&mut self) -> Result<()> {
-        if let Some(file) = self.files.get(self.selected) {
+        if let Some(file) = self.selected_file() {
             if file.file_type == FileType::Mp3File {
-                self.playback_title = Some(file.playback_title());
-                self.player.play(&file.path)?;
+                let playback_title = file.playback_title();
+                let path = file.path.clone();
+                self.playback_title = Some(playback_title);
+                self.player.play(&path)?;
             }
         }
         Ok(())
@@ -101,16 +107,19 @@ impl App {
     pub fn current_file_name(&self) -> String {
         if self.player.current_file_name() != "なし" {
             self.player.current_file_name()
-        } else if let Some(file) = self.files.get(self.selected) {
-            file.name.clone()
+        } else if let Some(entry) = self.list_entries().get(self.selected) {
+            entry.display_name.clone()
         } else {
             "ファイルなし".to_string()
         }
     }
 
-    pub fn is_file_playing(&self, file: &FileInfo) -> bool {
+    pub fn is_list_entry_playing(&self, entry: &FileListEntry) -> bool {
         let current_playing = self.player.current_file_name();
-        current_playing != "なし" && file.name == current_playing
+        current_playing != "なし"
+            && self.files[entry.file_index..entry.file_index + entry.file_count]
+                .iter()
+                .any(|file| file.name == current_playing)
     }
 
     pub fn is_playing(&self) -> bool {
@@ -143,11 +152,16 @@ impl App {
     }
 
     pub fn current_position_info(&self) -> String {
-        if self.files.is_empty() {
+        let list_len = self.list_len();
+        if list_len == 0 {
             String::new()
         } else {
-            format!("({}/{})", self.selected + 1, self.files.len())
+            format!("({}/{})", self.selected + 1, list_len)
         }
+    }
+
+    pub fn list_entries(&self) -> Vec<FileListEntry> {
+        build_file_list_entries(&self.files)
     }
 
     pub fn current_directory_display(&self) -> String {
@@ -193,7 +207,7 @@ impl App {
                     .iter()
                     .position(|f| f.file_type == FileType::Directory && f.name == old_dir_name)
                 {
-                    self.selected = pos;
+                    self.selected = self.display_index_for_file_index(pos).unwrap_or(0);
                     self.adjust_scroll();
                 }
             }
@@ -210,7 +224,7 @@ impl App {
     }
 
     pub fn handle_enter_key(&mut self) -> Result<()> {
-        if let Some(selected_file) = self.files.get(self.selected).cloned() {
+        if let Some(selected_file) = self.selected_file().cloned() {
             match selected_file.file_type {
                 FileType::Directory => {
                     // ディレクトリの場合は移動
@@ -225,7 +239,7 @@ impl App {
     }
 
     pub fn page_up(&mut self) {
-        if self.files.is_empty() {
+        if self.list_len() == 0 {
             return;
         }
 
@@ -247,28 +261,29 @@ impl App {
     }
 
     pub fn page_down(&mut self) {
-        if self.files.is_empty() {
+        let list_len = self.list_len();
+        if list_len == 0 {
             return;
         }
 
         // 現在のscroll_offsetから10件進む
-        if self.scroll_offset + 20 < self.files.len() {
+        if self.scroll_offset + 20 < list_len {
             self.scroll_offset += 10;
             self.selected = self.scroll_offset;
         } else {
             // 最後のページの場合
-            if self.files.len() > 10 {
-                let last_page_start = self.files.len() - 10;
+            if list_len > 10 {
+                let last_page_start = list_len - 10;
                 if self.scroll_offset < last_page_start {
                     // まだ最後のページでない場合は最後のページの先頭へ
                     self.scroll_offset = last_page_start;
                     self.selected = self.scroll_offset;
                 } else {
                     // 既に最後のページにいる場合は最後の項目へ
-                    self.selected = self.files.len() - 1;
+                    self.selected = list_len - 1;
                 }
             } else {
-                self.selected = self.files.len() - 1;
+                self.selected = list_len - 1;
             }
         }
     }
@@ -311,5 +326,20 @@ impl App {
             }
         }
         Ok(())
+    }
+
+    fn selected_file(&self) -> Option<&FileInfo> {
+        let file_index = self.list_entries().get(self.selected)?.file_index;
+        self.files.get(file_index)
+    }
+
+    fn list_len(&self) -> usize {
+        self.list_entries().len()
+    }
+
+    fn display_index_for_file_index(&self, file_index: usize) -> Option<usize> {
+        self.list_entries()
+            .iter()
+            .position(|entry| entry.file_index == file_index)
     }
 }
