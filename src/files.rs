@@ -46,7 +46,7 @@ impl FileInfo {
     }
 }
 
-pub fn build_file_list_entries(files: &[FileInfo]) -> Vec<FileListEntry> {
+pub fn build_file_list_entries(files: &[FileInfo], natural_speed_only: bool) -> Vec<FileListEntry> {
     let mut entries = Vec::new();
     let mut index = 0;
 
@@ -64,6 +64,11 @@ pub fn build_file_list_entries(files: &[FileInfo]) -> Vec<FileListEntry> {
             continue;
         }
 
+        if natural_speed_only && !should_show_with_natural_speed_filter(files, index) {
+            index += 1;
+            continue;
+        }
+
         let playback_title = file.playback_title();
         let mut file_count = 1;
 
@@ -71,6 +76,8 @@ pub fn build_file_list_entries(files: &[FileInfo]) -> Vec<FileListEntry> {
             let next_file = &files[index + file_count];
             if next_file.file_type != FileType::Mp3File
                 || next_file.playback_title() != playback_title
+                || (natural_speed_only
+                    && !should_show_with_natural_speed_filter(files, index + file_count))
             {
                 break;
             }
@@ -90,6 +97,60 @@ pub fn build_file_list_entries(files: &[FileInfo]) -> Vec<FileListEntry> {
     }
 
     entries
+}
+
+fn should_show_with_natural_speed_filter(files: &[FileInfo], index: usize) -> bool {
+    let current_title = files[index].playback_title();
+    let Some(current_variant) = speed_variant(&current_title) else {
+        return true;
+    };
+
+    if is_natural_speed_variant(current_variant.suffix) {
+        return true;
+    }
+
+    !files.iter().any(|file| {
+        if file.file_type != FileType::Mp3File {
+            return false;
+        }
+
+        let playback_title = file.playback_title();
+        let Some(variant) = speed_variant(&playback_title) else {
+            return false;
+        };
+
+        variant.base == current_variant.base && is_natural_speed_variant(variant.suffix)
+    })
+}
+
+#[derive(Debug, PartialEq)]
+struct SpeedVariant<'a> {
+    base: &'a str,
+    suffix: &'a str,
+}
+
+fn speed_variant(title: &str) -> Option<SpeedVariant<'_>> {
+    let extension_start = title.rfind('.')?;
+    let stem = &title[..extension_start];
+
+    let suffix_start = stem.rfind('(').or_else(|| stem.rfind('（'))?;
+    let suffix_end = stem
+        .strip_suffix(')')
+        .or_else(|| stem.strip_suffix('）'))
+        .map(|stripped| stripped.len())?;
+
+    if suffix_start >= suffix_end {
+        return None;
+    }
+
+    Some(SpeedVariant {
+        base: &stem[..suffix_start],
+        suffix: &stem[suffix_start + 1..suffix_end],
+    })
+}
+
+fn is_natural_speed_variant(suffix: &str) -> bool {
+    suffix.contains("ナチュラル")
 }
 
 fn build_mp3_display_name(
@@ -248,7 +309,7 @@ mod tests {
         ];
 
         assert_eq!(
-            build_file_list_entries(&files),
+            build_file_list_entries(&files, true),
             vec![
                 FileListEntry {
                     file_index: 0,
@@ -282,7 +343,7 @@ mod tests {
         ];
 
         assert_eq!(
-            build_file_list_entries(&files),
+            build_file_list_entries(&files, true),
             vec![
                 FileListEntry {
                     file_index: 0,
@@ -298,5 +359,93 @@ mod tests {
                 },
             ]
         );
+    }
+
+    #[test]
+    fn natural_speed_filter_hides_other_variants_when_natural_exists() {
+        let files = vec![
+            FileInfo {
+                path: PathBuf::from("09 Training(ナチュラルスピード).mp3"),
+                name: "09 Training(ナチュラルスピード).mp3".to_string(),
+                file_type: FileType::Mp3File,
+            },
+            FileInfo {
+                path: PathBuf::from("10 Training(ゆっくりスピード).mp3"),
+                name: "10 Training(ゆっくりスピード).mp3".to_string(),
+                file_type: FileType::Mp3File,
+            },
+            FileInfo {
+                path: PathBuf::from("11 Training(ポーズ入り).mp3"),
+                name: "11 Training(ポーズ入り).mp3".to_string(),
+                file_type: FileType::Mp3File,
+            },
+            FileInfo {
+                path: PathBuf::from("12 Story.mp3"),
+                name: "12 Story.mp3".to_string(),
+                file_type: FileType::Mp3File,
+            },
+        ];
+
+        assert_eq!(
+            build_file_list_entries(&files, true),
+            vec![
+                FileListEntry {
+                    file_index: 0,
+                    file_count: 1,
+                    display_name: "09 Training(ナチュラルスピード).mp3".to_string(),
+                    file_type: FileType::Mp3File,
+                },
+                FileListEntry {
+                    file_index: 3,
+                    file_count: 1,
+                    display_name: "12 Story.mp3".to_string(),
+                    file_type: FileType::Mp3File,
+                },
+            ]
+        );
+    }
+
+    #[test]
+    fn natural_speed_filter_keeps_other_variants_when_no_natural_exists() {
+        let files = vec![
+            FileInfo {
+                path: PathBuf::from("50 News(1.5倍速).mp3"),
+                name: "50 News(1.5倍速).mp3".to_string(),
+                file_type: FileType::Mp3File,
+            },
+            FileInfo {
+                path: PathBuf::from("51 News(1.5倍速).mp3"),
+                name: "51 News(1.5倍速).mp3".to_string(),
+                file_type: FileType::Mp3File,
+            },
+        ];
+
+        assert_eq!(
+            build_file_list_entries(&files, true),
+            vec![FileListEntry {
+                file_index: 0,
+                file_count: 2,
+                display_name: "50-51 News(1.5倍速).mp3".to_string(),
+                file_type: FileType::Mp3File,
+            }]
+        );
+    }
+
+    #[test]
+    fn natural_speed_filter_can_be_disabled() {
+        let files = vec![
+            FileInfo {
+                path: PathBuf::from("09 Training(ナチュラルスピード).mp3"),
+                name: "09 Training(ナチュラルスピード).mp3".to_string(),
+                file_type: FileType::Mp3File,
+            },
+            FileInfo {
+                path: PathBuf::from("10 Training(ゆっくりスピード).mp3"),
+                name: "10 Training(ゆっくりスピード).mp3".to_string(),
+                file_type: FileType::Mp3File,
+            },
+        ];
+
+        assert_eq!(build_file_list_entries(&files, false).len(), 2);
     }
 }

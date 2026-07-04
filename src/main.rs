@@ -84,6 +84,9 @@ fn handle_key_event(app: &mut App, key: KeyEvent) -> Result<()> {
         KeyCode::Char('p') => {
             app.play_selected()?;
         }
+        KeyCode::Char('n') => {
+            app.toggle_natural_speed_filter();
+        }
         KeyCode::Char(' ') => {
             app.toggle_pause();
         }

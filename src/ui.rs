@@ -81,13 +81,17 @@ fn draw_ui(f: &mut Frame, app: &App) {
         })
         .collect();
 
-    let list_title = format!("ファイルリスト {}", app.current_position_info());
+    let list_title = format!(
+        "ファイルリスト {} {}",
+        app.current_position_info(),
+        app.speed_filter_label()
+    );
     let list = List::new(items).block(Block::default().borders(Borders::ALL).title(list_title));
     f.render_widget(list, chunks[2]);
 
     // フッター（2行）
     let footer_line1 = "q:終了  j:下  k:上  [:前ページ  ]:次ページ  Enter:下層  Esc:上層";
-    let footer_line2 = "p:再生(同名なら連続再生)  Space:一時停止・再開";
+    let footer_line2 = "p:再生(同名なら連続再生)  n:速度絞込  Space:一時停止・再開";
     let footer_text = format!("{}\n{}", footer_line1, footer_line2);
     let footer = Paragraph::new(footer_text).style(Style::default().fg(Color::Yellow));
     f.render_widget(footer, chunks[3]);

@@ -14,6 +14,7 @@ pub struct App {
     pub should_quit: bool,
     pub current_directory: PathBuf,
     pub root_directory: PathBuf,
+    pub natural_speed_only: bool,
     playback_title: Option<String>,
 }
 
@@ -44,6 +45,7 @@ impl App {
             should_quit: false,
             current_directory: current_dir,
             root_directory: root_dir,
+            natural_speed_only: true,
             playback_title: None,
         })
     }
@@ -98,6 +100,27 @@ impl App {
 
     pub fn toggle_pause(&mut self) {
         self.player.toggle_pause();
+    }
+
+    pub fn toggle_natural_speed_filter(&mut self) {
+        let selected_file_index = self
+            .list_entries()
+            .get(self.selected)
+            .map(|entry| entry.file_index);
+        self.natural_speed_only = !self.natural_speed_only;
+
+        if let Some(file_index) = selected_file_index {
+            if let Some(display_index) = self
+                .display_index_for_file_index(file_index)
+                .or_else(|| self.display_index_at_or_after_file_index(file_index))
+            {
+                self.selected = display_index;
+            } else {
+                self.selected = self.selected.min(self.list_len().saturating_sub(1));
+            }
+        }
+
+        self.adjust_scroll();
     }
 
     pub fn quit(&mut self) {
@@ -160,8 +183,16 @@ impl App {
         }
     }
 
+    pub fn speed_filter_label(&self) -> &'static str {
+        if self.natural_speed_only {
+            "ナチュラルのみ"
+        } else {
+            "全速度"
+        }
+    }
+
     pub fn list_entries(&self) -> Vec<FileListEntry> {
-        build_file_list_entries(&self.files)
+        build_file_list_entries(&self.files, self.natural_speed_only)
     }
 
     pub fn current_directory_display(&self) -> String {
@@ -341,5 +372,13 @@ impl App {
         self.list_entries()
             .iter()
             .position(|entry| entry.file_index == file_index)
+    }
+
+    fn display_index_at_or_after_file_index(&self, file_index: usize) -> Option<usize> {
+        let entries = self.list_entries();
+        entries
+            .iter()
+            .position(|entry| entry.file_index >= file_index)
+            .or_else(|| entries.len().checked_sub(1))
     }
 }
