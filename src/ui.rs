@@ -23,11 +23,11 @@ fn draw_ui(f: &mut Frame, app: &App) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
-            Constraint::Length(1),  // ヘッダー
-            Constraint::Length(1),  // プレイヤー
-            Constraint::Length(12), // ファイルリスト（10行 + ボーダー2行）
-            Constraint::Length(2),  // フッター（2行）
-            Constraint::Min(0),     // 残りスペース
+            Constraint::Length(1), // ヘッダー
+            Constraint::Length(1), // プレイヤー
+            Constraint::Length(5), // ファイルリスト（3行 + ボーダー2行）
+            Constraint::Length(2), // フッター（2行）
+            Constraint::Min(0),    // 残りスペース
         ])
         .split(f.size());
 
@@ -56,14 +56,18 @@ fn draw_ui(f: &mut Frame, app: &App) {
     let player = Paragraph::new(player_text).style(Style::default().fg(Color::Cyan));
     f.render_widget(player, chunks[1]);
 
-    // ファイルリスト（スクロール対応）
+    // ファイルリスト（3行スロット表示）
     let entries = app.list_entries();
-    let items: Vec<ListItem> = entries
+    let slot_indices = visible_slot_indices(app.selected, entries.len());
+    let items: Vec<ListItem> = slot_indices
         .iter()
         .enumerate()
-        .skip(app.scroll_offset)
-        .take(10)
-        .map(|(i, entry)| {
+        .map(|(slot, entry_index)| {
+            let Some(entry_index) = entry_index else {
+                return ListItem::new(Line::from(""));
+            };
+
+            let entry = &entries[*entry_index];
             let play_icon = if app.is_list_entry_playing(entry) {
                 "▶️"
             } else if entry.file_type == crate::files::FileType::Directory {
@@ -72,10 +76,10 @@ fn draw_ui(f: &mut Frame, app: &App) {
                 "  " // 再生していない
             };
             let content = format!("{} {}", play_icon, entry.display_name);
-            let style = if i == app.selected {
-                Style::default().fg(Color::Green)
+            let style = if slot == 1 {
+                Style::default().fg(Color::White)
             } else {
-                Style::default().fg(Color::Gray)
+                Style::default().fg(Color::DarkGray)
             };
             ListItem::new(Line::from(Span::styled(content, style)))
         })
@@ -90,11 +94,27 @@ fn draw_ui(f: &mut Frame, app: &App) {
     f.render_widget(list, chunks[2]);
 
     // フッター（2行）
-    let footer_line1 = "q:終了  j:下  k:上  [:前ページ  ]:次ページ  Enter:下層  Esc:上層";
+    let footer_line1 = "q:終了  j:下へ回転  k:上へ回転  Enter:下層  Esc:上層";
     let footer_line2 = "p:再生(同名なら連続再生)  n:速度絞込  Space:一時停止・再開";
     let footer_text = format!("{}\n{}", footer_line1, footer_line2);
     let footer = Paragraph::new(footer_text).style(Style::default().fg(Color::Yellow));
     f.render_widget(footer, chunks[3]);
+}
+
+fn visible_slot_indices(selected: usize, list_len: usize) -> [Option<usize>; 3] {
+    match list_len {
+        0 => [None, None, None],
+        1 => [None, Some(0), None],
+        2 => {
+            let other = (selected + 1) % 2;
+            [Some(other), Some(selected), Some(other)]
+        }
+        _ => [
+            Some((selected + list_len - 1) % list_len),
+            Some(selected),
+            Some((selected + 1) % list_len),
+        ],
+    }
 }
 
 fn create_progress_bar(progress: f32) -> String {

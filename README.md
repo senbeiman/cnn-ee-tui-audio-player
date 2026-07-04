@@ -51,8 +51,7 @@ play-cnnee /path/to/music/directory
 ### キー操作
 
 ```text
-j / k  選択を下/上へ移動
-[ / ]  前/次ページへ移動
+j / k  ドラムを下/上へ回転
 Enter  ディレクトリに入る
 Esc    上のディレクトリに戻る
 p      再生（同名なら連続再生）

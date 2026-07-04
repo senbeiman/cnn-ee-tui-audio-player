@@ -9,7 +9,6 @@ use std::path::PathBuf;
 pub struct App {
     pub files: Vec<FileInfo>,
     pub selected: usize,
-    pub scroll_offset: usize,
     pub player: Player,
     pub should_quit: bool,
     pub current_directory: PathBuf,
@@ -40,7 +39,6 @@ impl App {
         Ok(Self {
             files,
             selected: 0,
-            scroll_offset: 0,
             player,
             should_quit: false,
             current_directory: current_dir,
@@ -54,13 +52,6 @@ impl App {
         let list_len = self.list_len();
         if list_len > 0 {
             self.selected = (self.selected + 1) % list_len;
-
-            // スクロール調整（10行表示の場合）
-            if self.selected >= self.scroll_offset + 10 {
-                self.scroll_offset = self.selected - 9;
-            } else if self.selected < self.scroll_offset {
-                self.scroll_offset = 0;
-            }
         }
     }
 
@@ -69,19 +60,8 @@ impl App {
         if list_len > 0 {
             if self.selected == 0 {
                 self.selected = list_len - 1;
-                // 最後のアイテムに移動する場合のスクロール調整
-                if list_len > 10 {
-                    self.scroll_offset = list_len - 10;
-                }
             } else {
                 self.selected -= 1;
-            }
-
-            // スクロール調整（10行表示の場合）
-            if self.selected < self.scroll_offset {
-                self.scroll_offset = self.selected;
-            } else if self.selected >= self.scroll_offset + 10 {
-                self.scroll_offset = self.selected - 9;
             }
         }
     }
@@ -119,8 +99,6 @@ impl App {
                 self.selected = self.selected.min(self.list_len().saturating_sub(1));
             }
         }
-
-        self.adjust_scroll();
     }
 
     pub fn quit(&mut self) {
@@ -214,7 +192,6 @@ impl App {
         self.files = new_files;
         self.current_directory = target_path.to_path_buf();
         self.selected = 0;
-        self.scroll_offset = 0;
 
         Ok(())
     }
@@ -239,19 +216,10 @@ impl App {
                     .position(|f| f.file_type == FileType::Directory && f.name == old_dir_name)
                 {
                     self.selected = self.display_index_for_file_index(pos).unwrap_or(0);
-                    self.adjust_scroll();
                 }
             }
         }
         Ok(())
-    }
-
-    fn adjust_scroll(&mut self) {
-        if self.selected >= self.scroll_offset + 10 {
-            self.scroll_offset = self.selected - 9;
-        } else if self.selected < self.scroll_offset {
-            self.scroll_offset = self.selected;
-        }
     }
 
     pub fn handle_enter_key(&mut self) -> Result<()> {
@@ -267,56 +235,6 @@ impl App {
             }
         }
         Ok(())
-    }
-
-    pub fn page_up(&mut self) {
-        if self.list_len() == 0 {
-            return;
-        }
-
-        // 現在のscroll_offsetから10件戻る
-        if self.scroll_offset >= 10 {
-            self.scroll_offset -= 10;
-            self.selected = self.scroll_offset;
-        } else {
-            // 既に最初のページにいる場合
-            if self.scroll_offset == 0 && self.selected > 0 {
-                // 最初のページで先頭以外にいる場合は先頭へ
-                self.selected = 0;
-            } else {
-                // 既に先頭にいる場合は変化なし
-                self.scroll_offset = 0;
-                self.selected = 0;
-            }
-        }
-    }
-
-    pub fn page_down(&mut self) {
-        let list_len = self.list_len();
-        if list_len == 0 {
-            return;
-        }
-
-        // 現在のscroll_offsetから10件進む
-        if self.scroll_offset + 20 < list_len {
-            self.scroll_offset += 10;
-            self.selected = self.scroll_offset;
-        } else {
-            // 最後のページの場合
-            if list_len > 10 {
-                let last_page_start = list_len - 10;
-                if self.scroll_offset < last_page_start {
-                    // まだ最後のページでない場合は最後のページの先頭へ
-                    self.scroll_offset = last_page_start;
-                    self.selected = self.scroll_offset;
-                } else {
-                    // 既に最後のページにいる場合は最後の項目へ
-                    self.selected = list_len - 1;
-                }
-            } else {
-                self.selected = list_len - 1;
-            }
-        }
     }
 
     pub fn has_current_file(&self) -> bool {
