@@ -82,6 +82,21 @@ impl App {
         self.player.toggle_pause();
     }
 
+    pub fn handle_space_key(&mut self) -> Result<()> {
+        if self.selected_entry_is_playing() {
+            self.toggle_pause();
+        } else if self
+            .selected_file()
+            .is_some_and(|file| file.file_type == FileType::Mp3File)
+        {
+            self.play_selected()?;
+        } else {
+            self.toggle_pause();
+        }
+
+        Ok(())
+    }
+
     pub fn toggle_natural_speed_filter(&mut self) {
         let selected_file_index = self
             .list_entries()
@@ -230,7 +245,7 @@ impl App {
                     self.navigate_to_directory(&selected_file.path)?;
                 }
                 FileType::Mp3File => {
-                    // MP3ファイルは何もしない（pキーで再生開始）
+                    // MP3ファイルはSpaceキーで再生開始
                 }
             }
         }
@@ -280,6 +295,12 @@ impl App {
     fn selected_file(&self) -> Option<&FileInfo> {
         let file_index = self.list_entries().get(self.selected)?.file_index;
         self.files.get(file_index)
+    }
+
+    fn selected_entry_is_playing(&self) -> bool {
+        self.list_entries()
+            .get(self.selected)
+            .is_some_and(|entry| self.is_list_entry_playing(entry))
     }
 
     fn list_len(&self) -> usize {

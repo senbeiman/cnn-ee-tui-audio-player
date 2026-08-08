@@ -69,20 +69,17 @@ fn handle_key_event(app: &mut App, key: KeyEvent) -> Result<()> {
         KeyCode::Esc => {
             app.navigate_up()?;
         }
-        KeyCode::Char('k') => {
+        KeyCode::Up => {
             app.select_prev();
         }
-        KeyCode::Char('j') => {
+        KeyCode::Down => {
             app.select_next();
-        }
-        KeyCode::Char('p') => {
-            app.play_selected()?;
         }
         KeyCode::Char('n') => {
             app.toggle_natural_speed_filter();
         }
         KeyCode::Char(' ') => {
-            app.toggle_pause();
+            app.handle_space_key()?;
         }
         KeyCode::Enter => {
             app.handle_enter_key()?;

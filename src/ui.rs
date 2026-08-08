@@ -94,8 +94,8 @@ fn draw_ui(f: &mut Frame, app: &App) {
     f.render_widget(list, chunks[2]);
 
     // フッター（2行）
-    let footer_line1 = "q:終了  j:下へ回転  k:上へ回転  Enter:下層  Esc:上層";
-    let footer_line2 = "p:再生(同名なら連続再生)  n:速度絞込  Space:一時停止・再開";
+    let footer_line1 = "q:終了  ↑↓: 移動  Enter:下層  Esc:上層";
+    let footer_line2 = "Space:再生・一時停止  n:速度絞込";
     let footer_text = format!("{}\n{}", footer_line1, footer_line2);
     let footer = Paragraph::new(footer_text).style(Style::default().fg(Color::Yellow));
     f.render_widget(footer, chunks[3]);
