@@ -38,6 +38,16 @@ zshの場合は `~/.zshrc` に次の設定があれば使えます。
 export PATH="$HOME/.cargo/bin:$PATH"
 ```
 
+### macOSアプリとしてインストール
+
+`cargo-bundle` をインストール済みの環境では、リポジトリのルートで次を実行すると `/Applications/CNN EE Audio Player.app` にインストールされます。
+
+```bash
+scripts/install-macos-app.sh
+```
+
+ApplicationsやFinderから開くと、Terminalで `play-cnnee` が起動します。
+
 ### 起動
 
 ```bash

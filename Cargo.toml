@@ -5,6 +5,16 @@ edition = "2021"
 authors = ["akiko.kusaka"]
 description = "Terminal-based music player for English learning"
 
+[package.metadata.bundle]
+name = "CNN EE Audio Player"
+identifier = "jp.akiko.cnn-ee-tui-audio-player"
+icon = ["assets/cnn-logo-red-background.png"]
+category = "public.app-category.education"
+short_description = "CNN English Express TUI audio player"
+long_description = """
+Terminal-based audio player for CNN English Express MP3 files.
+"""
+
 [[bin]]
 name = "play-cnnee"
 path = "src/main.rs"
