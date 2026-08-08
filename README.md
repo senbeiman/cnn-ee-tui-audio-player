@@ -46,7 +46,7 @@ export PATH="$HOME/.cargo/bin:$PATH"
 scripts/install-macos-app.sh
 ```
 
-ApplicationsやFinderから開くと、Terminalで `play-cnnee` が起動します。
+ApplicationsやFinderから開くと、同梱の `.terminal` 設定を使って60x10サイズのTerminalウィンドウで `play-cnnee` が起動します。
 
 ### 起動
 
